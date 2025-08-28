@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <head>
+    <title>AI Interviewer (ADK Streaming)</title>
+    <script src="/static/js/app.js" type="module"></script>
+  </head>
+
+  <body>
+    <h1>AI Interviewer</h1>
+
+    <h2>Admin Setup</h2>
+    <form id="setupForm">
+      <label for="jobDescription">Job Description:</label><br />
+      <textarea id="jobDescription" rows="4" cols="50"></textarea><br />
+
+      <label for="resume">Candidate Resume:</label><br />
+      <textarea id="resume" rows="4" cols="50"></textarea><br />
+
+      <button type="submit">Start Interview</button>
+    </form>
+
+    <hr />
+
+    <h2>Interview</h2>
+    <div
+      id="messages"
+      style="height: 300px; overflow-y: auto; border: 1px solid black"></div>
+    <br />
+
+    <form id="messageForm">
+      <label for="message">Message:</label>
+      <input type="text" id="message" name="message" />
+      <button type="submit" id="sendButton" disabled>Send</button>
+      <button type="button" id="startAudioButton">Start Audio</button>
+    </form>
+  </body>
+</html>
