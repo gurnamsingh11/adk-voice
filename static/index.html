@@ -1,37 +1,272 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>AI Interviewer (ADK Streaming)</title>
+    <meta charset="UTF-8" />
+    <title>AI Interviewer (Face Tracking + Audio)</title>
+
+    <!-- MediaPipe libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
+
+    <style>
+      body { 
+        margin: 0; 
+        font-family: Arial, sans-serif; 
+        display: flex;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+      
+      #sidebar { 
+        width: 320px; 
+        background: rgba(255,255,255,0.95);
+        padding: 1.5rem; 
+        border-right: 1px solid rgba(0,0,0,0.1); 
+        height: 100vh; 
+        overflow-y: auto; 
+        transition: transform 0.3s ease;
+        backdrop-filter: blur(10px);
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+      }
+      
+      #sidebar.hidden { 
+        transform: translateX(-100%); 
+      }
+      
+      #toggleSidebar { 
+        position: absolute; 
+        top: 15px; 
+        left: 15px; 
+        z-index: 1000; 
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white; 
+        border: none; 
+        padding: 8px 12px; 
+        cursor: pointer; 
+        border-radius: 8px;
+        font-size: 18px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+      }
+      
+      #toggleSidebar:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      }
+      
+      #main { 
+        flex: 1; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        padding: 2rem;
+        color: white;
+      }
+      
+      h1 {
+        margin: 0 0 2rem 0;
+        font-size: 2.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      }
+      
+      h2 {
+        color: #333;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 0.5rem;
+      }
+      
+      #output { 
+        border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        max-width: 100%;
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(5px);
+      }
+      
+      #status { 
+        margin: 15px 0; 
+        font-weight: bold;
+        font-size: 1.2rem;
+        padding: 10px 20px;
+        border-radius: 25px;
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(10px);
+        text-align: center;
+        min-width: 200px;
+        transition: all 0.3s ease;
+      }
+      
+      #messages { 
+        margin-top: 1.5rem; 
+        width: 100%;
+        max-width: 640px;
+        height: 200px; 
+        overflow-y: auto; 
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 10px;
+        padding: 1rem;
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        color: white;
+      }
+      
+      .message { 
+        margin: 8px 0; 
+        padding: 8px 12px;
+        border-radius: 8px;
+        word-wrap: break-word;
+      }
+      
+      .user { 
+        background: rgba(100,149,237,0.3);
+        text-align: right;
+        border-left: 3px solid #6495ed;
+      }
+      
+      .bot { 
+        background: rgba(34,139,34,0.3);
+        border-left: 3px solid #228b22;
+      }
+      
+      .system { 
+        background: rgba(255,99,71,0.3);
+        font-style: italic;
+        border-left: 3px solid #ff6347;
+      }
+      
+      #messageForm {
+        margin-top: 1rem;
+        display: flex;
+        gap: 10px;
+        width: 100%;
+        max-width: 640px;
+      }
+      
+      input[type="text"] {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 25px;
+        background: rgba(255,255,255,0.2);
+        color: white;
+        backdrop-filter: blur(10px);
+        font-size: 14px;
+      }
+      
+      input[type="text"]::placeholder {
+        color: rgba(255,255,255,0.7);
+      }
+      
+      button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 25px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      }
+      
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      }
+      
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      #startAudioButton {
+        margin-top: 10px;
+        padding: 12px 24px;
+        font-size: 16px;
+        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      }
+      
+      textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin: 5px 0 15px 0;
+        resize: vertical;
+        font-family: inherit;
+        box-sizing: border-box;
+      }
+      
+      label {
+        font-weight: bold;
+        color: #555;
+        margin-bottom: 5px;
+        display: block;
+      }
+      
+      #connectionStatus {
+        margin-top: 1rem; 
+        padding: 10px; 
+        border-radius: 8px; 
+        background: #f0f0f0; 
+        font-size: 14px;
+        text-align: center;
+        border-left: 4px solid #007bff;
+      }
+
+      #audioStatus {
+        margin-top: 0.5rem;
+        padding: 8px;
+        border-radius: 6px;
+        background: #e9ecef;
+        font-size: 12px;
+        text-align: center;
+      }
+    </style>
+
     <script src="/static/js/app.js" type="module"></script>
   </head>
-
   <body>
-    <h1>AI Interviewer</h1>
+    <button id="toggleSidebar">☰</button>
 
-    <h2>Admin Setup</h2>
-    <form id="setupForm">
-      <label for="jobDescription">Job Description:</label><br />
-      <textarea id="jobDescription" rows="4" cols="50"></textarea><br />
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <h2>Admin Setup</h2>
+      <form id="setupForm">
+        <label for="jobDescription">Job Description:</label>
+        <textarea id="jobDescription" rows="4" placeholder="Enter the job description here..."></textarea>
+        
+        <label for="resume">Candidate Resume:</label>
+        <textarea id="resume" rows="4" placeholder="Enter the candidate's resume here..."></textarea>
+        
+        <button type="submit">Start Interview</button>
+      </form>
+      
+      <div id="connectionStatus">
+        Status: Not Connected
+      </div>
 
-      <label for="resume">Candidate Resume:</label><br />
-      <textarea id="resume" rows="4" cols="50"></textarea><br />
+      <div id="audioStatus">
+        Audio: Not Active
+      </div>
+    </div>
 
-      <button type="submit">Start Interview</button>
-    </form>
+    <!-- Main -->
+    <div id="main">
+      <h1>AI Interviewer</h1>
+      <canvas id="output" width="640" height="480"></canvas>
+      <div id="status">Initializing camera...</div>
 
-    <hr />
-
-    <h2>Interview</h2>
-    <div
-      id="messages"
-      style="height: 300px; overflow-y: auto; border: 1px solid black"></div>
-    <br />
-
-    <form id="messageForm">
-      <label for="message">Message:</label>
-      <input type="text" id="message" name="message" />
-      <button type="submit" id="sendButton" disabled>Send</button>
-      <button type="button" id="startAudioButton">Start Audio</button>
-    </form>
+      <div id="messages"></div>
+      <form id="messageForm">
+        <input type="text" id="message" placeholder="Type a message..." />
+        <button type="submit" id="sendButton" disabled>Send</button>
+      </form>
+      <button type="button" id="startAudioButton" disabled>Start Audio</button>
+    </div>
   </body>
 </html>
